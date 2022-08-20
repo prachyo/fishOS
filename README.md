@@ -1,2 +1,2 @@
 # toy-os
-Very simple operating system.
+Very simple operating system
