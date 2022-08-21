@@ -1,7 +1,7 @@
 # Makefile for the kernel. Based on the makefile found at
 # http://www.jamesmolloy.co.uk/tutorial_html/1.-Environment%20setup.html
 
-OBJECTS = loader.o kmain.o tty.o io.o
+OBJECTS = loader.o kmain.o tty.o io.o gdt.o gdt_asm.o
 CC = gcc
 CFLAGS = -m32 -nostdlib -nostdinc -fno-builtin -fno-stack-protector -nostartfiles \
 		 -nodefaultlibs -Wall -Wextra -c
@@ -11,11 +11,14 @@ ASFLAGS = -f elf
 
 all: kernel
 
-run: floppy
+run: image
 	cd ../tools; ./run_bochs.sh
 
 floppy: kernel
 	./create_floppy.sh
+
+image: kernel
+	./create_image.sh
 
 kernel: $(OBJECTS)
 	ld $(LDFLAGS) $(OBJECTS) -o kernel
