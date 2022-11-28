@@ -11,6 +11,12 @@ This is a rudimentary operating system built from scratch for didactic purposes.
 * User mode
 * Small set of system calls
 
+Dependencies
+-------
+```
+sudo apt-get install build-essential nasm genisoimage bochs bochs-x
+```
+
 Running
 -------
 
