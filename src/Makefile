@@ -1,33 +1,55 @@
-# Makefile for the kernel. Based on the makefile found at
-# http://www.jamesmolloy.co.uk/tutorial_html/1.-Environment%20setup.html
+APPS = init
+FS_ROOT = fs_root
+BIN_PATH = $(FS_ROOT)/bin
 
-OBJECTS = loader.o kmain.o tty.o io.o gdt.o gdt_asm.o
-CC = gcc
-CFLAGS = -m32 -nostdlib -nostdinc -fno-builtin -fno-stack-protector -nostartfiles \
-		 -nodefaultlibs -Wall -Wextra -c
-LDFLAGS = -T link.ld -melf_i386
-AS = nasm
-ASFLAGS = -f elf
+all: iso
 
-all: kernel
+iso: build_kernel build_libc fs
+	@echo '-> Creating ISO'
+	./create_iso.sh fs
+	@echo ''
 
-run: image
-	cd ../tools; ./run_bochs.sh
+run: iso
+	@echo '-> Starting BOCHS'
+	./run_bochs.sh || echo "\n" ; cat com1.out
 
-floppy: kernel
-	./create_floppy.sh
+create_bin_folder: build_apps
+	@echo '-> Copying applications to fs folder'
+	mkdir -p $(BIN_PATH)
+	for app in $(APPS); do cp apps/$$app $(BIN_PATH); done
+	@echo ''
 
-image: kernel
-	./create_image.sh
+fs: mkfs create_bin_folder
+	@echo '-> Creating filesystem'
+	./mkfs $(FS_ROOT) $@
+	@echo ''
 
-kernel: $(OBJECTS)
-	ld $(LDFLAGS) $(OBJECTS) -o kernel
+mkfs: mkfs.c
+	gcc -Wall -Wextra -Werror -O2 mkfs.c -o mkfs
 
-.o: 
-	$(CC) $(CFLAGS) $< -o $@
+build_apps:
+	@echo '-> Building applications'
+	@make --no-print-directory -C apps
+	@echo ''
 
-.s.o: 
-	$(AS) $(ASFLAGS) $< 
+build_kernel:
+	@echo '-> Building kernel'
+	@make --no-print-directory -C kernel
+	@echo ''
+
+build_libc:
+	@echo '-> Building libc'
+	@make --no-print-directory -C libc
+	@echo ''
 
 clean:
-	rm -r *.o kernel bin
+	@echo '-> Cleaning kernel'
+	@make --no-print-directory -C kernel clean
+	@echo ''
+	@echo '-> Cleaning apps'
+	@make --no-print-directory -C apps clean
+	@echo ''
+	@echo '-> Cleaning libc'
+	@make --no-print-directory -C libc clean
+	@echo ''
+	rm -rf mkfs aenix.iso fs
