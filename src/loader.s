@@ -6,7 +6,7 @@
 
 global loader                           ; the entry point for the linker
 
-extern main                            ; kmain is defined in kmain.c
+extern kmain                            ; kmain is defined in kmain.c
 
 ; setting up the multiboot headers for GRUB
 MODULEALIGN equ 1<<0                    ; align loaded modules on page 
@@ -30,7 +30,6 @@ loader:
     push eax                            ; eax contains the MAGIC number
     push ebx                            ; ebx contains the multiboot data 
                                         ; structure
-    cli                                 ; disable interrupts
     call kmain                          ; call the main function of the kernel
 
 hang:
