@@ -6,7 +6,7 @@
 
 global loader                           ; the entry point for the linker
 
-extern kmain                            ; kmain is defined in kmain.c
+extern main                            ; kmain is defined in kmain.c
 
 ; setting up the multiboot headers for GRUB
 MODULEALIGN equ 1<<0                    ; align loaded modules on page 
@@ -24,9 +24,7 @@ align 4
     dd FLAGS
     dd CHECKSUM
 
-; reserve initial stack space
-STACKSIZE equ 0x4000                    ; 16kB
-
+; the entry point, called by GRUB
 loader:
     mov esp, stack+STACKSIZE            ; sets up the stack pointer
     push eax                            ; eax contains the MAGIC number
@@ -37,6 +35,9 @@ loader:
 
 hang:
     jmp hang                            ; loop forever
+
+; reserve initial stack space
+STACKSIZE equ 0x4000                    ; 16kB
 
 section .bss
 
