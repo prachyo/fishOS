@@ -1,14 +1,16 @@
+#include "interrupt.h"
 #include "stdint.h"
-#include "fb.h"
 #include "pic.h"
 #include "keyboard.h"
 #include "common.h"
+#include "pit.h"
+#include "stdio.h"
 
-struct irq_info {
+struct idt_info {
 	uint32_t idt_index;
 	uint32_t error_code;
 } __attribute__((packed));
-typedef struct irq_info irq_info_t;
+typedef struct idt_info idt_info_t;
 
 struct cpu_state {
 	uint32_t edi;
@@ -22,16 +24,28 @@ struct cpu_state {
 } __attribute__((packed));
 typedef struct cpu_state cpu_state_t;
 
-void interrupt_handler(cpu_state_t state, irq_info_t info)
+void print_keyboard_input(void)
 {
-	UNUSED_ARGUMENT(state);
-	fb_puts("Interrupt number: ");
-	fb_putui(info.idt_index);
-	fb_puts("\n");
-	if (info.idt_index == 0x21) {
-		kbd_read();
-	}
-	if (info.idt_index >= 0x20 && info.idt_index < (0x20+16)) {
-		pic_acknowledge();
-	}
+    uint8_t ch = kbd_scan_code_to_ascii(kbd_read_scan_code());
+    if (ch != 0) {
+        printf("%c", ch);
+    }
+}
+
+void interrupt_handler(cpu_state_t state, idt_info_t info)
+{
+    UNUSED_ARGUMENT(state);
+
+    if (info.idt_index == KEYBOARD_INTERRUPT_INDEX) {
+        print_keyboard_input();
+    }
+
+    if (info.idt_index == TIMER_INTERRUPT_INDEX) {
+        pit_handle_interrupt();
+    }
+
+    if (info.idt_index >= PIC1_START && 
+        info.idt_index < (PIC1_START + PIC_NUM_IRQS)) {
+        pic_acknowledge();
+    }
 }

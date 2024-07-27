@@ -23,9 +23,6 @@
 #define PIC1_ICW4   0x05 /* 8086/88 mode is enabled and PIC1 is master */
 #define PIC2_ICW4   0x01 /* 8086/88 mode is enabled */
 
-#define PIC1_START  0x20
-#define PIC2_START  0x28
-
 #define PIC_EOI     0x20
 
 void pic_init(void)
@@ -46,7 +43,7 @@ void pic_init(void)
     outb(PIC1_PORT_B, PIC1_ICW4);
     outb(PIC2_PORT_B, PIC2_ICW4);
 
-    pic_mask(0xFD, 0xFF);
+    pic_mask(0xFC, 0xFF);
 }
 
 void pic_acknowledge()

@@ -1,7 +1,9 @@
 #include "fb.h"
 #include "io.h"
+#include "common.h"
 
-#define FB_MEMORY 0xB8000
+#define FB_MEMORY KERNEL_BASE_ADDR + 0x000B8000
+
 #define FB_NUM_COLS 80
 #define FB_NUM_ROWS 25
 
@@ -15,6 +17,8 @@
 
 #define TO_ADDRESS(row, col) (fb + 2 * (row * FB_NUM_COLS + col))
 
+#define FB_BACKSPACE_ASCII 8
+
 static uint8_t *fb = (uint8_t *) FB_MEMORY;
 static uint16_t cursor_pos;
 
@@ -26,7 +30,6 @@ static void write_cell(uint8_t *cell, uint8_t b)
 
 static void set_cursor(uint16_t loc)
 {
-    /*loc = loc % (FB_NUM_ROWS * FB_NUM_COLS);*/
     outb(FB_CURSOR_INDEX_PORT, FB_HIGH_BYTE);
     outb(FB_CURSOR_DATA_PORT, loc >> 8);
     outb(FB_CURSOR_INDEX_PORT, FB_LOW_BYTE);
@@ -37,6 +40,14 @@ static void move_cursor_forward(void)
 {
     cursor_pos++;
     set_cursor(cursor_pos);
+}
+
+static void move_cursor_back(void)
+{
+    if (cursor_pos != 0) {
+        cursor_pos--;
+        set_cursor(cursor_pos);
+    }
 }
 
 static void move_cursor_down()
@@ -65,9 +76,9 @@ static void scroll()
     }
 }
 
-void fb_putb(uint8_t b)
+void fb_put_b(uint8_t b)
 {
-    if (b != '\n') {
+    if (b != '\n' && b != '\t' && b != FB_BACKSPACE_ASCII) {
         uint8_t *cell = fb + 2 * cursor_pos;
         write_cell(cell, b);
     }
@@ -75,6 +86,15 @@ void fb_putb(uint8_t b)
     if (b == '\n') {
         move_cursor_down(); 
         move_cursor_start();
+    } else if (b == FB_BACKSPACE_ASCII) {
+        move_cursor_back();
+        uint8_t *cell = fb + 2 * cursor_pos;
+        write_cell(cell, ' ');
+    } else if (b == '\t') {
+        int i;
+        for (i = 0; i < 4; ++i) {
+            fb_put_b(' ');
+        }
     } else {
         move_cursor_forward();
     }
@@ -85,14 +105,14 @@ void fb_putb(uint8_t b)
     }
 }
 
-void fb_puts(char *s)
+void fb_put_s(char *s)
 {
     while (*s != '\0') {
-        fb_putb(*s++);
+        fb_put_b(*s++);
     }
 }
 
-void fb_putui(uint32_t i)
+void fb_put_ui(uint32_t i)
 {
     /* FIXME: please make this code more beautiful */
     uint32_t n, digit;
@@ -106,11 +126,54 @@ void fb_putui(uint32_t i)
     }
     while (n > 0) {
         digit = i / n;
-        fb_putb('0'+digit);
+        fb_put_b('0'+digit);
         i %= n;
         n /= 10;
     }
 }
+
+void fb_put_ui_hex(uint32_t i)
+{
+    fb_put_ui_hex_pad(i, 0);
+}
+
+void fb_put_ui_hex_pad(uint32_t i, uint8_t min_digits)
+{
+    char *digits = "0123456789ABCDEF";
+    uint32_t n, digit;
+
+    /* find the largest nibble to output */
+    if (i >= 0x10000000) {
+        n = 28;
+    } else {
+        n = 0;
+        while ((((uint32_t)0x01) << (n+4)) <= i) {
+            n += 4;
+        }
+    }
+
+    fb_put_s("0x");
+
+    /* pad with zeroes */
+    if (min_digits > 0) {
+        min_digits -= 1;
+    }
+    min_digits <<= 2;
+    while (min_digits > n) {
+        fb_put_b('0');
+        min_digits -= 4;
+    }
+    /* print the number */
+    while (1) {
+        digit = (i >> n) & 0x0000000F;
+        fb_put_b(digits[digit]);
+        if (n == 0) {
+            break;
+        }
+        n -= 4;
+    }
+}
+
 void fb_write(uint8_t b, uint32_t row, uint32_t col)
 {
     uint8_t *cell = TO_ADDRESS(row, col);
